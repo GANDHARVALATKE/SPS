@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
 import pytz
-from flask import Flask, request, jsonify, send_file, session
+from flask import Flask, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
 from pymongo import MongoClient
 from gridfs import GridFS
@@ -48,6 +48,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     raise RuntimeError("❌ SECRET_KEY not set in environment variables. Application cannot start.")
 app.secret_key = SECRET_KEY
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Session configuration
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -57,15 +58,56 @@ app.config['SESSION_COOKIE_SECURE'] = True
 os.environ.setdefault('SSL_CERT_FILE', certifi.where())
 CORS(app, resources={r"/api/*": {
     "origins": [
-        r"^http://localhost(:\d+)?$",
-        r"^http://127\.0\.0\.1(:\d+)?$",
-        r"^null$",  # Allow file:// access (Chrome uses 'null')
+        r"^https?://localhost(:\d+)?$",
+        r"^https?://127\.0\.0\.1(:\d+)?$",
+        r"^https://.*\.netlify\.app$",
+        r"^https://sps-ksou\.onrender\.com$",
+        r"^null$",
         r"^file://.*$"
     ],
     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "allow_headers": ["Content-Type", "Authorization"],
     "supports_credentials": True
 }}) 
+
+@app.route('/', methods=['GET'])
+def root():
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
+
+@app.route('/dashboard', methods=['GET'])
+def serve_dashboard():
+    return send_file(os.path.join(BASE_DIR, 'dashboard.html'))
+
+@app.route('/studentprogression', methods=['GET'])
+def serve_studentprogression():
+    return send_file(os.path.join(BASE_DIR, 'studentprogression.html'))
+
+@app.route('/reports', methods=['GET'])
+def serve_reports():
+    return send_file(os.path.join(BASE_DIR, 'reports.html'))
+
+@app.route('/settings', methods=['GET'])
+def serve_settings():
+    return send_file(os.path.join(BASE_DIR, 'settings.html'))
+
+@app.route('/<path:filepath>', methods=['GET'])
+def serve_static(filepath):
+    full_path = os.path.join(BASE_DIR, filepath)
+    if os.path.isfile(full_path):
+        if filepath.endswith('.html'):
+            return send_file(full_path)
+        return send_from_directory(BASE_DIR, filepath)
+    return jsonify({"message": "Not Found"}), 404
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith('/api/'):
+        return jsonify({"message": "Not Found"}), 404
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
+
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    return "ok", 200
 
 # --- Configuration ---
 MONGO_URI = os.getenv('MONGO_URI')
@@ -8929,5 +8971,5 @@ def delete_feedback(feedback_id):
         return jsonify({"message": "Internal server error"}), 500
 
 if __name__ == '__main__':
-    # print("✅ Flask server is running on http://127.0.0.1:5001")
-    app.run(debug=False, port=5001, use_reloader=False)
+    port = int(os.environ.get('PORT', '5001'))
+    app.run(host='0.0.0.0', debug=False, port=port, use_reloader=False)
