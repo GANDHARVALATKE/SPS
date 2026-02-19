@@ -9,3 +9,5 @@ openpyxl
 python-docx
 python-dotenv
 dnspython
+flask
+gunicorn
