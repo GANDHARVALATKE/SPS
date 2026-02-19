@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – Automated Dashboard for Student Progression</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        (function () {
+            var targetLength = 156;
+            var param = 'uid';
+            try {
+                var url = new URL(window.location.href);
+                if (!url.searchParams.get(param)) {
+                    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+                    var bytes = new Uint8Array(targetLength);
+                    (window.crypto || window.msCrypto).getRandomValues(bytes);
+                    var uid = '';
+                    for (var i = 0; i < targetLength; i++) uid += chars[bytes[i] % chars.length];
+                    url.searchParams.set(param, uid);
+                    window.history.replaceState(null, '', url.toString());
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); 
+            background-attachment: fixed; 
+        }
+        .overlay::before { 
+            content: ''; 
+            position: absolute; 
+            inset: 0; 
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.9) 100%); 
+            backdrop-filter: blur(10px); 
+            z-index: 1; 
+        }
+        .login-card { 
+            position: relative; 
+            z-index: 2; 
+            animation: fadeIn 0.5s ease-out forwards; 
+            background: linear-gradient(145deg, #1e293b 0%, #334155 100%);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.1);
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: scale(0.95) translateY(20px); } 
+            to { opacity: 1; transform: scale(1) translateY(0); } 
+        }
+        /* Keep inputs dark even when focused or autofilled */
+        input::-webkit-contacts-auto-fill-button { visibility: hidden; display: none !important; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active { 
+            -webkit-text-fill-color: #e5e7eb; 
+            box-shadow: 0 0 0px 1000px rgba(30,41,59,0.7) inset !important; 
+            transition: background-color 9999s ease-in-out 0s; 
+        }
+        .hidden { display: none; }
+        /* Hide empty headings for a cleaner login screen */
+        h2#page-title:empty,
+        p#page-subtitle:empty { display: none; }
+    </style>
+</head>
+<body>
+    <div class="overlay flex items-center justify-center min-h-screen p-4">
+        <div class="login-card w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-8 sm:p-12">
+            <div class="text-center mb-8">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Automated Dashboard for Student Progression</h1>
+                </div>
+                <h2 id="page-title" class="text-3xl font-bold text-white"></h2>
+                <p id="page-subtitle" class="text-slate-300 mt-2"></p>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="login-form" class="space-y-6">
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="login-email" type="email" placeholder="Email Address" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="login-password" type="password" placeholder="Password" required class="block w-full pl-12 pr-12 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                    <button type="button" class="toggle-password absolute inset-y-0 right-0 px-4 flex items-center text-blue-400 hover:text-blue-300 transition-colors z-10">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <a href="#" id="show-register" class="text-blue-400 hover:text-blue-300">Create Account</a>
+                    <a href="#" id="show-forgot-password" class="text-blue-400 hover:text-blue-300">Forgot Password?</a>
+                </div>
+                <p class="error-message text-red-400 text-sm text-center h-5"></p>
+                <button type="submit" class="w-full h-12 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center justify-center shadow-lg transition-all transform hover:scale-[1.02]">
+                    <span>Login</span>
+                    <div class="spinner w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin ml-2 hidden"></div>
+                </button>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="register-form" class="space-y-4 hidden">
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="register-email" type="email" placeholder="Email Address" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <p class="text-xs text-slate-400 mt-1 mb-2 flex items-start gap-2 px-1">
+                    <i class="fa-solid fa-circle-info mt-0.5 text-blue-400"></i>
+                    <span>Each email address can be used for only one college and one branch to ensure strict data isolation.</span>
+                </p>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="register-password" type="password" placeholder="Password (min 6 chars)" required minlength="6" class="block w-full pl-12 pr-12 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                    <button type="button" class="toggle-password absolute inset-y-0 right-0 px-4 flex items-center text-blue-400 hover:text-blue-300 transition-colors z-10">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                <div class="relative">
+                    <i class="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="register-college" type="text" placeholder="College Name" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <div class="relative">
+                    <i class="fa-solid fa-code-branch absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="register-branch" type="text" placeholder="Branch Name" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <div class="text-sm text-center">
+                    <a href="#" id="show-login" class="text-blue-400 hover:text-blue-300">Already have an account? Login</a>
+                </div>
+                <p class="error-message text-red-400 text-sm text-center h-5"></p>
+                <button type="submit" class="w-full h-12 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center justify-center shadow-lg transition-all transform hover:scale-[1.02]">
+                    <span>Register</span>
+                    <div class="spinner w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin ml-2 hidden"></div>
+                </button>
+            </form>
+
+            <!-- VERIFY EMAIL FORM (New Registration) -->
+            <form id="verify-email-form" class="space-y-6 hidden">
+                <input type="hidden" id="verify-email-address">
+                <div class="relative">
+                    <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="verify-email-otp" type="text" placeholder="Enter OTP from Email" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <p class="error-message text-red-400 text-sm text-center h-5"></p>
+                <button type="submit" class="w-full h-12 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:from-green-700 hover:to-green-800 flex items-center justify-center shadow-lg transition-all transform hover:scale-[1.02]">
+                    <span>Verify Email</span>
+                    <div class="spinner w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin ml-2 hidden"></div>
+                </button>
+            </form>
+
+            <!-- FORGOT PASSWORD FORM (Step 1: Email) -->
+            <form id="forgot-password-form" class="space-y-6 hidden">
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="forgot-email" type="email" placeholder="Enter your registered email" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <div class="text-sm text-center">
+                    <a href="#" id="back-to-login" class="text-blue-400 hover:text-blue-300">Back to Login</a>
+                </div>
+                <p class="error-message text-red-400 text-sm text-center h-5"></p>
+                <button type="submit" class="w-full h-12 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center justify-center shadow-lg transition-all transform hover:scale-[1.02]">
+                    <span>Send OTP</span>
+                    <div class="spinner w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin ml-2 hidden"></div>
+                </button>
+            </form>
+
+            <!-- VERIFY OTP FORM (Step 2: OTP & New Password) -->
+            <form id="verify-otp-form" class="space-y-6 hidden">
+                <input type="hidden" id="reset-email">
+                <div class="relative">
+                    <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="otp-code" type="text" placeholder="Enter OTP" required class="block w-full pl-12 pr-4 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                </div>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10"></i>
+                    <input id="new-password" type="password" placeholder="New Password" required minlength="6" class="block w-full pl-12 pr-12 py-3 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm placeholder-slate-400">
+                    <button type="button" class="toggle-password absolute inset-y-0 right-0 px-4 flex items-center text-blue-400 hover:text-blue-300 transition-colors z-10">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                <p class="error-message text-red-400 text-sm text-center h-5"></p>
+                <button type="submit" class="w-full h-12 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:from-green-700 hover:to-green-800 flex items-center justify-center shadow-lg transition-all transform hover:scale-[1.02]">
+                    <span>Reset Password</span>
+                    <div class="spinner w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin ml-2 hidden"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:5001/api/auth';
+
+        // View Management
+        function showView(viewId) {
+            ['login-form', 'register-form', 'forgot-password-form', 'verify-otp-form', 'verify-email-form'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+            
+            // Update Title
+            const title = document.getElementById('page-title');
+            const subtitle = document.getElementById('page-subtitle');
+            
+            if (viewId === 'login-form') {
+                title.textContent = '';
+                subtitle.textContent = '';
+            } else if (viewId === 'register-form') {
+                title.textContent = 'Create Account';
+                subtitle.textContent = 'Register a new faculty account.';
+            } else if (viewId === 'forgot-password-form') {
+                title.textContent = 'Reset Password';
+                subtitle.textContent = 'Enter your email to receive an OTP.';
+            } else if (viewId === 'verify-otp-form') {
+                title.textContent = 'Verify OTP';
+                subtitle.textContent = 'Enter OTP sent to your email and set new password.';
+            } else if (viewId === 'verify-email-form') {
+                title.textContent = 'Verify Email';
+                subtitle.textContent = 'Enter the verification OTP sent to your email.';
+            }
+
+            // Clear errors
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+        }
+
+        // Navigation Listeners
+        document.getElementById('show-register').addEventListener('click', (e) => { e.preventDefault(); showView('register-form'); });
+        document.getElementById('show-login').addEventListener('click', (e) => { e.preventDefault(); showView('login-form'); });
+        document.getElementById('show-forgot-password').addEventListener('click', (e) => { e.preventDefault(); showView('forgot-password-form'); });
+        document.getElementById('back-to-login').addEventListener('click', (e) => { e.preventDefault(); showView('login-form'); });
+
+        // Password Toggle
+        document.querySelectorAll('.toggle-password').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const input = this.previousElementSibling;
+                const icon = this.querySelector('i');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        });
+
+        // API Helper
+        async function apiCall(endpoint, method, body, btn) {
+            const spinner = btn.querySelector('.spinner');
+            const span = btn.querySelector('span');
+            const errorEl = btn.parentElement.querySelector('.error-message');
+            
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+            span.classList.add('hidden');
+            errorEl.textContent = '';
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Request failed');
+                return data;
+            } catch (err) {
+                errorEl.textContent = err.message;
+                throw err;
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('hidden');
+                span.classList.remove('hidden');
+            }
+        }
+
+        // Login Handler
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            try {
+                const data = await apiCall('/login', 'POST', { email, password }, btn);
+                // Store branch info in session storage for UI display
+                // Backend returns { success: true, user: { branch: '...', role: '...' } }
+                if (data.user) {
+                    sessionStorage.setItem('user_branch', data.user.branch);
+                    sessionStorage.setItem('user_role', data.user.role);
+                    
+                    if (data.user.role === 'super_admin') {
+                        window.location.href = 'admin.html';
+                        return;
+                    }
+                } else {
+                    // Fallback if backend structure is flat (just in case)
+                    sessionStorage.setItem('user_branch', data.branch);
+                    sessionStorage.setItem('user_role', data.role);
+
+                    if (data.role === 'super_admin') {
+                        window.location.href = 'admin.html';
+                        return;
+                    }
+                }
+                window.location.href = 'dashboard.html';
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Register Handler
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const college = document.getElementById('register-college').value;
+            const branch = document.getElementById('register-branch').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            try {
+                await apiCall('/register', 'POST', { email, password, college, branch }, btn);
+                // Instead of going to login, go to verify email
+                document.getElementById('verify-email-address').value = email;
+                showView('verify-email-form');
+                alert('Registration successful! Please check your email for the OTP.');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Verify Email Handler
+        document.getElementById('verify-email-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('verify-email-address').value;
+            const otp = document.getElementById('verify-email-otp').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            try {
+                await apiCall('/verify-email', 'POST', { email, otp }, btn);
+                alert('Email verified successfully! You can now login.');
+                showView('login-form');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Forgot Password Handler
+        document.getElementById('forgot-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            try {
+                await apiCall('/forgot-password', 'POST', { email }, btn);
+                document.getElementById('reset-email').value = email;
+                showView('verify-otp-form');
+                alert('OTP sent to your email!');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Verify OTP & Reset Handler
+        document.getElementById('verify-otp-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const otp = document.getElementById('otp-code').value;
+            const newPassword = document.getElementById('new-password').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+
+            try {
+                // Verify OTP first (optional if reset-password endpoint handles both, but usually separated or combined)
+                // My backend implementation has /verify-otp and /reset-password.
+                // Let's check app.py logic.
+                // Wait, I recall implementing /api/auth/verify-otp AND /api/auth/reset-password?
+                // Actually, standard flow: 
+                // 1. Forgot -> Sends OTP.
+                // 2. Verify OTP -> Returns success (maybe a token?).
+                // 3. Reset Password -> Uses token/OTP + new password.
+                
+                // Let's assume /reset-password takes email, otp, new_password.
+                // Or I can check app.py.
+                
+                await apiCall('/reset-password', 'POST', { email, otp, new_password: newPassword }, btn);
+                alert('Password reset successful! Please login.');
+                showView('login-form');
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

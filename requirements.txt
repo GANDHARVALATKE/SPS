@@ -1,0 +1,11 @@
+Flask
+flask-cors
+pymongo
+pandas
+bcrypt
+certifi
+xlsxwriter
+openpyxl
+python-docx
+python-dotenv
+dnspython

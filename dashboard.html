@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard - Student Progression System</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        (function () {
+            var targetLength = 156;
+            var param = 'uid';
+            try {
+                var url = new URL(window.location.href);
+                if (!url.searchParams.get(param)) {
+                    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+                    var bytes = new Uint8Array(targetLength);
+                    (window.crypto || window.msCrypto).getRandomValues(bytes);
+                    var uid = '';
+                    for (var i = 0; i < targetLength; i++) uid += chars[bytes[i] % chars.length];
+                    url.searchParams.set(param, uid);
+                    window.history.replaceState(null, '', url.toString());
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="global.css">
+    <script>
+        // --- Access Control for Super Admin ---
+        (function() {
+            const role = sessionStorage.getItem('user_role');
+            if (role === 'super_admin') {
+                window.location.href = 'admin.html';
+            }
+        })();
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            background-attachment: fixed;
+        }
+        .dropdown-panel {
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+            transform-origin: top right;
+        }
+        .dropdown-panel.hidden {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+            pointer-events: none;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .sidebar-glass {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .kpi-card {
+            background: linear-gradient(145deg, #1e293b 0%, #334155 100%);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .kpi-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="text-white">
+    <div class="flex h-screen overflow-hidden" id="app-shell">
+        <!-- Sidebar -->
+        <aside class="w-60 flex-shrink-0 sidebar-glass shadow-lg flex flex-col">
+
+            <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+                <a href="dashboard.html" class="flex items-center p-3 text-white bg-blue-600/20 rounded-lg transition-colors border border-blue-500/30">
+                    <i class="fa-solid fa-chart-pie w-5 h-5 mr-3 text-blue-400"></i>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="studentprogression.html" class="flex items-center p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors hover:text-white">
+                    <i class="fa-solid fa-arrow-trend-up w-5 h-5 mr-3 text-blue-400"></i>
+                    <span class="nav-text">Data Upload and View</span>
+                </a>
+                <a href="reports.html" class="flex items-center p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors hover:text-white">
+                    <i class="fa-solid fa-file-alt w-5 h-5 mr-3 text-blue-400"></i>
+                    <span class="nav-text">Reports</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t border-slate-600">
+                <a href="settings.html" class="flex items-center p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors hover:text-white">
+                    <i class="fa-solid fa-cog w-5 h-5 mr-3 text-blue-400"></i>
+                    <span class="nav-text">Settings</span>
+                </a>
+                <a id="logout-link" href="index.html" class="flex items-center p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors hover:text-white">
+                    <i class="fa-solid fa-sign-out-alt w-5 h-5 mr-3 text-blue-400"></i>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </div>
+        </aside>
+        <div id="sidebar-backdrop" class="md:hidden"></div>
+
+        <!-- Main content -->
+        <main class="flex-1 overflow-y-auto">
+            <header class="h-16 glass-card shadow-md flex items-center justify-between px-6 sticky top-0 z-10 border-b border-slate-600">
+                <div class="flex items-center space-x-3">
+                    <button id="sidebar-toggle" class="p-2 md:hidden rounded-md hover:bg-slate-700/50 focus:outline-none" aria-label="Toggle sidebar">
+                        <i class="fa-solid fa-bars text-slate-300"></i>
+                    </button>
+                    <h2 class="text-lg font-semibold text-white">
+                        <span class="text-slate-300">Logged in:</span>
+                        <span id="user-branch-display" class="text-blue-400">Loading...</span>
+                        <span class="mx-2 text-slate-500">|</span>
+                        Batch: <span id="selected-batch-display">Select Batch</span>
+                    </h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <label for="batch-select" class="text-sm font-medium text-slate-300 mr-2">Select Batch:</label>
+                    <select id="batch-select" class="px-4 py-2 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all backdrop-blur-sm">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- Error Banner (hidden by default) -->
+                <div id="dashboard-error-banner" class="hidden mb-6 glass-card p-4 rounded-xl border border-red-500/30 bg-red-900/20">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-exclamation-triangle text-red-400 text-xl mr-3"></i>
+                            <div>
+                                <p class="text-red-400 font-semibold">Unable to load dashboard data</p>
+                                <p id="dashboard-error-message" class="text-red-300 text-sm mt-1"></p>
+                            </div>
+                        </div>
+                        <button onclick="document.getElementById('dashboard-error-banner').classList.add('hidden')" class="text-red-400 hover:text-red-300">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- KPIs -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                        <i class="fa-solid fa-chart-line text-blue-400 mr-3"></i> Batch Overview
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Sanctioned Intake</p>
+                                <p id="kpi-sanctioned" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-user-check text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Admitted</p>
+                                <p id="kpi-admitted" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-users text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">DSE</p>
+                                <p id="kpi-dse" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-building-columns text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Students Passed (w/o KT)</p>
+                                <p id="kpi-completed" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-check-circle text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Performance Charts -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                        <i class="fa-solid fa-chart-bar text-blue-400 mr-3"></i> Academic Performance
+                    </h2>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-percentage text-blue-400 mr-2"></i> Pass % per Semester
+                            </h3>
+                            <canvas id="passChart" height="240"></canvas>
+                        </div>
+
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-chart-pie text-blue-400 mr-2"></i> Backlog vs Non-Backlog
+                            </h3>
+                            <canvas id="backlogChart" height="240"></canvas>
+                        </div>
+
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-graduation-cap text-blue-400 mr-2"></i> Average CGPA per Semester
+                            </h3>
+                            <canvas id="cgpaChart" height="240"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Academic Performance Index (API) Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Overall API</p>
+                                <p id="overall-api" class="text-3xl font-bold text-white">—</p>
+                                <p class="text-xs text-slate-400 mt-1">All Semesters</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-chart-line text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Second Year API</p>
+                                <p id="second-year-api" class="text-3xl font-bold text-white">—</p>
+                                <p class="text-xs text-slate-400 mt-1">Sem 3–4</p>
+                            </div>
+                            <div class="bg-green-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-green-500/30">
+                                <i class="fa-solid fa-chart-bar text-green-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Third Year API</p>
+                                <p id="third-year-api" class="text-3xl font-bold text-white">—</p>
+                                <p class="text-xs text-slate-400 mt-1">Sem 5–6</p>
+                            </div>
+                            <div class="bg-purple-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-purple-500/30">
+                                <i class="fa-solid fa-chart-area text-purple-400 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extracurricular Section -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                        <i class="fa-solid fa-trophy text-blue-400 mr-3"></i> Extracurricular
+                    </h2>
+
+                    <!-- Summary Cards (Top) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Activities Conducted</p>
+                                <p id="extra-total-activities" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-yellow-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-yellow-500/30">
+                                <i class="fa-solid fa-calendar-check text-yellow-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Student Participations</p>
+                                <p id="extra-total-participants" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-blue-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-blue-500/30">
+                                <i class="fa-solid fa-users text-blue-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Achievements / Wins</p>
+                                <p id="extra-total-wins" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-purple-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-purple-500/30">
+                                <i class="fa-solid fa-medal text-purple-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Activities at National / State Level</p>
+                                <p id="extra-national-state" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-green-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-green-500/30">
+                                <i class="fa-solid fa-globe text-green-400 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+<!-- Participation Location KPIs Removed -->
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- Category-wise Distribution (Bar Chart) -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-chart-bar text-blue-400 mr-2"></i> Activities by Category
+                            </h3>
+                            <canvas id="extraCategoryChart" height="240"></canvas>
+                        </div>
+
+                        <!-- Internship Distribution -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-briefcase text-blue-400 mr-2"></i> Internship Distribution
+                            </h3>
+                            <canvas id="internshipChart" height="240"></canvas>
+                        </div>
+
+                        <!-- Student Participation Outside College -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-globe text-blue-400 mr-2"></i> Participation Outside College
+                            </h3>
+                            <canvas id="participationChart" height="240"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Technical & Internship Highlights -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Hackathons</p>
+                                <p id="extra-hackathons" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-indigo-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-indigo-500/30">
+                                <i class="fa-solid fa-code text-indigo-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Internships</p>
+                                <p id="extra-internships" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-cyan-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-cyan-500/30">
+                                <i class="fa-solid fa-briefcase text-cyan-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Paid Internships (%)</p>
+                                <p id="extra-paid-internships" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-emerald-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-emerald-500/30">
+                                <i class="fa-solid fa-percentage text-emerald-400 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Career Outcomes Overview Section -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                        <i class="fa-solid fa-briefcase text-blue-400 mr-3"></i> Career Outcomes Overview
+                    </h2>
+
+                    <!-- Summary KPI Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Total Placed Students</p>
+                                <p id="placement-total-placed" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-indigo-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-indigo-500/30">
+                                <i class="fa-solid fa-briefcase text-indigo-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Higher Studies Students</p>
+                                <p id="placement-higher-studies" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-purple-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-purple-500/30">
+                                <i class="fa-solid fa-graduation-cap text-purple-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Entrepreneurship Students</p>
+                                <p id="placement-entrepreneurship" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-orange-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-orange-500/30">
+                                <i class="fa-solid fa-lightbulb text-orange-400 text-xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card p-6 rounded-xl shadow-lg flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-300">Placement Percentage</p>
+                                <p id="placement-percentage" class="text-3xl font-bold text-white">—</p>
+                            </div>
+                            <div class="bg-indigo-600/20 p-3 rounded-full w-12 h-12 flex items-center justify-center border border-indigo-500/30">
+                                <i class="fa-solid fa-percentage text-indigo-400 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-chart-pie text-indigo-400 mr-2"></i> Outcome Distribution
+                            </h3>
+                            <canvas id="placementOutcomeChart" height="240"></canvas>
+                        </div>
+
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-chart-bar text-indigo-400 mr-2"></i> Company-wise Placements (Top 5)
+                            </h3>
+                            <canvas id="placementCompanyChart" height="240"></canvas>
+                        </div>
+
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-chart-pie text-blue-400 mr-2"></i> Higher Studies - India vs Abroad
+                            </h3>
+                            <canvas id="placementCountryChart" height="240"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Data Tables Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- Placement Details Table -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+                                <i class="fa-solid fa-briefcase text-indigo-400 mr-2"></i> Career Outcome Details
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <div class="max-h-64 overflow-y-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                                            <tr class="border-b border-slate-600">
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Company</th>
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Role</th>
+                                                <th class="text-right py-2 px-3 text-slate-300 text-xs">Students</th>
+                                                <th class="text-right py-2 px-3 text-slate-300 text-xs">Package</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="placement-details-body">
+                                            <tr>
+                                                <td colspan="4" class="text-center py-4 text-slate-400">Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Higher Studies Summary Table -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-graduation-cap text-blue-400 mr-2"></i> Higher Studies Summary
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <div class="max-h-64 overflow-y-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                                            <tr class="border-b border-slate-600">
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Course</th>
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Degree</th>
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">University</th>
+                                                <th class="text-right py-2 px-3 text-slate-300 text-xs">Students</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="higher-studies-body">
+                                            <tr>
+                                                <td colspan="4" class="text-center py-4 text-slate-400">Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Entrepreneurship Summary Table -->
+                        <div class="glass-card p-6 rounded-xl shadow-lg">
+                            <h3 class="text-white font-semibold mb-4 flex items-center">
+                                <i class="fa-solid fa-lightbulb text-blue-400 mr-2"></i> Entrepreneurship Summary
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <div class="max-h-64 overflow-y-auto">
+                                    <table class="w-full text-sm">
+                                        <thead class="sticky top-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                                            <tr class="border-b border-slate-600">
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Startup</th>
+                                                <th class="text-left py-2 px-3 text-slate-300 text-xs">Status</th>
+                                                <th class="text-right py-2 px-3 text-slate-300 text-xs">Students</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="entrepreneurship-body">
+                                            <tr>
+                                                <td colspan="3" class="text-center py-4 text-slate-400">Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Notice modal -->
+    <div id="alert-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl border border-orange-200 w-full max-w-md p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-3">
+                <i class="fa-solid fa-circle-info text-orange-500 text-xl"></i>
+            </div>
+            <h3 class="text-gray-800 text-lg font-semibold mb-2">Notice</h3>
+            <p id="alert-message" class="text-gray-600 mb-5"></p>
+            <button id="alert-ok" class="px-5 py-2 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg hover:from-orange-500 hover:to-orange-600">OK</button>
+        </div>
+    </div>
+
+    <!-- Logout modal -->
+    <div id="logout-overlay" class="logout-overlay hidden">
+        <div class="logout-modal">
+            <div class="mb-4 flex justify-center">
+                <div class="h-12 w-12 rounded-full bg-slate-700 flex items-center justify-center">
+                    <i class="fa-solid fa-sign-out-alt text-blue-400 text-xl"></i>
+                </div>
+            </div>
+            <h3 class="text-white text-lg font-semibold mb-2">Confirm Logout</h3>
+            <p class="text-slate-300 mb-6">Are you sure you want to logout?</p>
+            <div class="flex justify-center space-x-3">
+                <button id="logout-cancel" class="px-5 py-2 bg-[#2f3b55] hover:bg-[#3a4b6b] text-white rounded-lg font-medium transition-colors">Cancel</button>
+                <button id="logout-confirm" class="px-5 py-2 bg-[#4a3dfc] hover:bg-[#3d32d0] text-white rounded-lg font-medium transition-colors">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete confirmation modal -->
+    <div id="delete-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="glass-card rounded-xl shadow-2xl w-full max-w-md p-6 text-center border border-slate-600">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-600/20 mb-3 border border-red-500/30">
+                <i class="fa-solid fa-trash text-red-400 text-xl"></i>
+            </div>
+            <h3 class="text-white text-lg font-semibold mb-2">Confirm Deletion</h3>
+            <p id="delete-message" class="text-slate-300 mb-5">Are you sure you want to delete this event?</p>
+            <div class="space-x-3">
+                <button id="delete-cancel" class="px-5 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600">Cancel</button>
+                <button id="delete-confirm" class="px-5 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
+
+    <script>
+        // Dashboard script: loads dashboard summary
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE = 'http://127.0.0.1:5001';
+            let currentBatchId = null;
+
+            // Check Authentication & Branch
+            const userBranch = sessionStorage.getItem('user_branch');
+            const userRole = sessionStorage.getItem('user_role');
+
+            if (!userBranch) {
+                window.location.href = 'index.html'; // Redirect if not logged in
+                return;
+            }
+            document.getElementById('user-branch-display').textContent = `${userBranch} – Logged in`;
+
+            // Admin Link Injection
+            if (userRole === 'super_admin') {
+                const nav = document.querySelector('aside nav');
+                if (nav) {
+                    const adminLink = document.createElement('a');
+                    adminLink.href = 'admin.html';
+                    adminLink.className = 'flex items-center p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors hover:text-white mb-2 border border-purple-500/30 bg-purple-900/20';
+                    adminLink.innerHTML = '<i class="fa-solid fa-user-shield w-5 h-5 mr-3 text-purple-400"></i> SaaS Admin';
+                    nav.insertBefore(adminLink, nav.firstChild);
+                }
+            }
+
+            // modal/notice elements
+            const alertOverlay = document.getElementById('alert-overlay');
+            const alertMessage = document.getElementById('alert-message');
+            const alertOk = document.getElementById('alert-ok');
+            const batchSelect = document.getElementById('batch-select');
+            const selectedBatchDisplay = document.getElementById('selected-batch-display');
+
+            // KPI elements
+            const elSanctioned = document.getElementById('kpi-sanctioned');
+            const elAdmitted   = document.getElementById('kpi-admitted');
+            const elDse        = document.getElementById('kpi-dse');
+            const elCompleted  = document.getElementById('kpi-completed');
+
+            // Chart references so we can destroy before re-creating
+            let passChart = null;
+            let backlogChart = null;
+            let cgpaChart = null;
+            
+            // Extracurricular chart references
+            let extraCategoryChart = null;
+            let internshipChart = null;
+            let participationChart = null;
+            
+            // Placement chart references
+            let placementOutcomeChart = null;
+            let placementCompanyChart = null;
+            let placementCountryChart = null;
+
+            // Close notice
+            alertOk.addEventListener('click', () => {
+                alertOverlay.classList.add('hidden');
+            });
+
+            // Load batches and set default
+            async function loadBatches() {
+                try {
+                    // Include credentials to send cookies with the request
+                    const response = await fetch(`${API_BASE}/api/batches`, {
+                        credentials: 'include'
+                    });
+                    if (!response.ok) throw new Error('Failed to load batches');
+                    const batches = await response.json();
+                    
+                    batchSelect.innerHTML = '';
+                    if (batches.length === 0) {
+                        batchSelect.innerHTML = '<option value="">No batches found - create a new batch</option>';
+                        return;
+                    }
+
+                    // Sort batches by range (earliest first)
+                    batches.sort((a, b) => a.batch_range.localeCompare(b.batch_range));
+                    
+                    batches.forEach(batch => {
+                        const option = document.createElement('option');
+                        option.value = batch.id;
+                        option.textContent = batch.batch_range;
+                        batchSelect.appendChild(option);
+                    });
+                    
+                    // Determine selected batch
+                    let selectedBatchId = localStorage.getItem('selectedBatchID');
+                    let selectedBatch = null;
+
+                    if (selectedBatchId) {
+                        selectedBatch = batches.find(b => b.id === selectedBatchId);
+                    }
+
+                    // If no stored batch or stored batch not found, default to earliest (first in sorted list)
+                    if (!selectedBatch) {
+                        selectedBatch = batches[0];
+                    }
+
+                    if (selectedBatch) {
+                        currentBatchId = selectedBatch.id;
+                        batchSelect.value = selectedBatch.id;
+                        selectedBatchDisplay.textContent = selectedBatch.batch_range;
+                        
+                        // Persist selection
+                        localStorage.setItem('selectedBatchID', currentBatchId);
+                        
+                        fetchDashboardSummary();
+                        fetchExtracurricularData();
+                        fetchPlacementData();
+                    }
+                } catch (error) {
+                    console.error('Error loading batches:', error);
+                    batchSelect.innerHTML = '<option value="">Error loading batches</option>';
+                }
+            }
+
+            // Handle batch selection change
+            batchSelect.addEventListener('change', (e) => {
+                currentBatchId = e.target.value;
+                const selectedOption = batchSelect.options[batchSelect.selectedIndex];
+                selectedBatchDisplay.textContent = selectedOption.textContent || '—';
+                
+                // Persist selection
+                localStorage.setItem('selectedBatchID', currentBatchId);
+                
+                fetchDashboardSummary();
+                fetchExtracurricularData();
+                fetchPlacementData();
+            });
+
+            // Fetch dashboard summary (calls backend)
+            async function fetchDashboardSummary() {
+                if (!currentBatchId) {
+                    elSanctioned.textContent = '—';
+                    elAdmitted.textContent = '—';
+                    elDse.textContent = '—';
+                    elCompleted.textContent = '—';
+                    renderCharts([]);
+                    return;
+                }
+                
+                // set UI loading placeholders
+                elSanctioned.textContent = '...';
+                elAdmitted.textContent = '...';
+                elDse.textContent = '...';
+                elCompleted.textContent = '...';
+
+                try {
+                    const url = `${API_BASE}/api/dashboard-summary?batch_id=${currentBatchId}`;
+                    const res = await fetch(url, { credentials: 'include' });
+                    if (!res.ok) {
+                        // try to parse body for message
+                        let txt = '';
+                        try { const j = await res.json(); txt = j.message || JSON.stringify(j); } catch(_) { txt = await res.text(); }
+                        throw new Error(txt || `HTTP ${res.status}`);
+                    }
+                    const data = await res.json();
+                    console.log('📊 Dashboard data received:', data);
+                    const kpis = data.kpis || data || {};
+                    console.log('📈 KPIs extracted:', kpis);
+                    console.log('📅 Semesters extracted:', data.semesters || []);
+                    renderKpis(kpis);
+                    renderCharts(data.semesters || []);
+                    console.log('✅ Dashboard rendered successfully');
+                } catch (err) {
+                    console.error('❌ Dashboard summary error:', err);
+                    renderKpis({});
+                    renderCharts([]);
+                    
+                    // Check if it's a network/connectivity error
+                    const errMsg = err.message || String(err);
+                    const errName = err.name || '';
+                    const isNetworkError = 
+                        errMsg.includes('Failed to fetch') || 
+                        errMsg.includes('NetworkError') || 
+                        errMsg.includes('Network request failed') ||
+                        errMsg.includes('fetch') ||
+                        errName === 'TypeError' ||
+                        errName === 'AbortError' ||
+                        err.code === 'ECONNREFUSED';
+                    
+                    // Show error banner
+                    const errorBanner = document.getElementById('dashboard-error-banner');
+                    const errorMessage = document.getElementById('dashboard-error-message');
+                    
+                    if (isNetworkError) {
+                        console.error('⚠️ Cannot connect to server. Make sure Flask is running on http://127.0.0.1:5001');
+                        console.error('   Start the server with: python app.py');
+                        if (errorBanner && errorMessage) {
+                            errorBanner.classList.remove('hidden');
+                            errorMessage.textContent = 'Cannot connect to server. Please make sure Flask is running on http://127.0.0.1:5001';
+                        }
+                    } else {
+                        // For other errors (like 500, 404, etc.), show a helpful message
+                        let msg = errMsg;
+                        try {
+                            const parsed = typeof msg === 'string' ? JSON.parse(msg) : null;
+                            if (parsed && parsed.message) msg = parsed.message;
+                        } catch (e) {}
+                        
+                        if (errorBanner && errorMessage) {
+                            errorBanner.classList.remove('hidden');
+                            errorMessage.textContent = msg || 'Unknown error occurred while loading dashboard data';
+                        }
+                        
+                        // Only show alert for meaningful errors (not generic fetch errors)
+                        if (msg && !msg.includes('Failed to fetch') && !msg.includes('fetch')) {
+                            showAlert(msg);
+                        }
+                    }
+                }
+            }
+
+            // Render KPI values (safe fallback)
+            function renderKpis(k) {
+                console.log('🎨 Rendering KPIs with data:', k);
+                const sanctioned = k?.sanctioned_intake ?? k?.sanctioned ?? null;
+                const admitted = k?.total_admitted ?? k?.admitted ?? null;
+                const dse = k?.dse ?? null;
+                const completed = k?.successfully_completed ?? k?.completed ?? null;
+                
+                console.log('📊 KPI values:', { sanctioned, admitted, dse, completed });
+                
+                elSanctioned.textContent = sanctioned !== null ? sanctioned : '—';
+                elAdmitted.textContent   = admitted !== null ? admitted : '—';
+                elDse.textContent        = dse !== null ? dse : '—';
+                elCompleted.textContent  = completed !== null ? completed : '—';
+                
+                console.log('✅ KPIs rendered:', {
+                    sanctioned: elSanctioned.textContent,
+                    admitted: elAdmitted.textContent,
+                    dse: elDse.textContent,
+                    completed: elCompleted.textContent
+                });
+                
+                // Render API values
+                const overallApi = k?.academic_performance_index ?? null;
+                const secondYearApi = k?.second_year_api ?? null;
+                const thirdYearApi = k?.third_year_api ?? null;
+                
+                const elOverallApi = document.getElementById('overall-api');
+                const elSecondYearApi = document.getElementById('second-year-api');
+                const elThirdYearApi = document.getElementById('third-year-api');
+                
+                if (elOverallApi) {
+                    elOverallApi.textContent = overallApi !== null ? overallApi.toFixed(2) : 'Data Not Available';
+                }
+                if (elSecondYearApi) {
+                    elSecondYearApi.textContent = secondYearApi !== null ? secondYearApi.toFixed(2) : 'Data Not Available';
+                }
+                if (elThirdYearApi) {
+                    elThirdYearApi.textContent = thirdYearApi !== null ? thirdYearApi.toFixed(2) : 'Data Not Available';
+                }
+            }
+
+            // Charts rendering helpers (destroy previous charts first)
+            function destroyChart(ch) {
+                if (ch && typeof ch.destroy === 'function') {
+                    try { ch.destroy(); } catch(e) {}
+                }
+            }
+
+            function renderCharts(semesters) {
+                console.log('📊 Rendering charts with semesters:', semesters);
+                // parse sem rows (support different shapes)
+                const sems = Array.isArray(semesters) ? semesters : [];
+                console.log('📋 Processed semesters array:', sems);
+
+                const simple = sems.filter(s => {
+                    const sem = (s.semester || '').toString().toLowerCase();
+                    return /^(sem[1-8])$/.test(sem);
+                });
+                console.log('✅ Filtered valid semesters:', simple);
+
+                const labels = simple.map(s => (s.semester || '').toUpperCase());
+                console.log('🏷️ Chart labels:', labels);
+                const passPerc = simple.map(s => {
+                    const t = Number(s.total || s.total_students || 0);
+                    const w = Number(s.without_backlog || s.success_without_backlog || 0);
+                    return t > 0 ? Math.round((w / t) * 100) : 0;
+                });
+                const withBacklog = simple.map(s => Number(s.with_backlog || s.with_backlog_count || 0));
+                const withoutBacklog = simple.map(s => Number(s.without_backlog || s.success_without_backlog || 0));
+                const cgpa = simple.map(s => (s.avg_cgpa == null ? null : Number(s.avg_cgpa)));
+
+                // destroy old charts (if any)
+                destroyChart(passChart);
+                destroyChart(backlogChart);
+                destroyChart(cgpaChart);
+
+                // create passChart
+                const passCtx = document.getElementById('passChart');
+                if (passCtx) {
+                    passChart = new Chart(passCtx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [{ label: 'Pass %', data: passPerc, backgroundColor: '#4F7DF3' }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { labels: { color: '#e2e8f0' } } },
+                            scales: { x: { ticks: { color: '#94a3b8' } }, y: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' } } }
+                        }
+                    });
+                }
+
+                // backlog chart
+                const backlogCtx = document.getElementById('backlogChart');
+                if (backlogCtx) {
+                    backlogChart = new Chart(backlogCtx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                { label: 'Without Backlog', data: withoutBacklog, backgroundColor: '#AFC2FF' },
+                                { label: 'With Backlog', data: withBacklog, backgroundColor: '#4F7DF3' }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { labels: { color: '#e2e8f0' } } },
+                            scales: { x: { ticks: { color: '#94a3b8' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8' } } }
+                        }
+                    });
+                }
+
+                // cgpa chart
+                const cgpaCtx = document.getElementById('cgpaChart');
+                if (cgpaCtx) {
+                    cgpaChart = new Chart(cgpaCtx, {
+                        type: 'line',
+                        data: { labels, datasets: [{ label: 'Avg CGPA', data: cgpa, borderColor: '#4F7DF3', backgroundColor: 'rgba(79, 125, 243, 0.16)', tension: 0.25, spanGaps: true }] },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { labels: { color: '#e2e8f0' } } },
+                            scales: { x: { ticks: { color: '#94a3b8' } }, y: { beginAtZero: true, max: 10, ticks: { color: '#94a3b8' } } }
+                        }
+                    });
+                }
+
+            }
+
+            // utility to show modal notice
+            function showAlert(message) {
+                alertMessage.textContent = message;
+                alertOverlay.classList.remove('hidden');
+            }
+
+            // logout handlers
+            const logoutLink = document.getElementById('logout-link');
+            const logoutOverlay = document.getElementById('logout-overlay');
+            const logoutCancel = document.getElementById('logout-cancel');
+            const logoutConfirm = document.getElementById('logout-confirm');
+
+            logoutLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                logoutOverlay.classList.remove('hidden');
+            });
+            logoutCancel.addEventListener('click', () => {
+                logoutOverlay.classList.add('hidden');
+            });
+            logoutConfirm.addEventListener('click', () => {
+                localStorage.removeItem('loggedInUser');
+                sessionStorage.removeItem('sps_user');
+                window.location.href = 'index.html';
+            });
+
+            // Extracurricular data fetching and rendering
+            async function fetchExtracurricularData() {
+                if (!currentBatchId) {
+                    renderExtracurricularKPIs({}, []);
+                    renderExtracurricularCharts({}, []);
+                    return;
+                }
+                
+                try {
+                    // Fetch summary
+                    const summaryUrl = `${API_BASE}/api/extracurricular/summary?batch_id=${currentBatchId}`;
+                    console.log('Fetching extracurricular summary from:', summaryUrl);
+                    const summaryRes = await fetch(summaryUrl, { credentials: 'include' });
+                    if (!summaryRes.ok) {
+                        const errorText = await summaryRes.text();
+                        console.error('Summary fetch failed:', summaryRes.status, errorText);
+                        throw new Error(`HTTP ${summaryRes.status}: ${errorText}`);
+                    }
+                    const summaryData = await summaryRes.json();
+                    console.log('Summary data received:', summaryData);
+                    
+                    // Fetch records for detailed views
+                    const recordsUrl = `${API_BASE}/api/extracurricular/records?per_page=100&batch_id=${currentBatchId}`;
+                    console.log('Fetching extracurricular records from:', recordsUrl);
+                    const recordsRes = await fetch(recordsUrl, { credentials: 'include' });
+                    let recordsData = { records: [] };
+                    if (recordsRes.ok) {
+                        recordsData = await recordsRes.json();
+                        console.log('Records data received:', recordsData.records?.length || 0, 'records');
+                    } else {
+                        const errorText = await recordsRes.text();
+                        console.error('Records fetch failed:', recordsRes.status, errorText);
+                    }
+                    
+                    renderExtracurricularKPIs(summaryData, recordsData.records || []);
+                    renderExtracurricularCharts(summaryData, recordsData.records || []);
+                } catch (err) {
+                    console.error('❌ Error loading extracurricular data:', err);
+                    const errMsg = err.message || String(err);
+                    const errName = err.name || '';
+                    const isNetworkError = 
+                        errMsg.includes('Failed to fetch') || 
+                        errMsg.includes('NetworkError') || 
+                        errName === 'TypeError';
+                    
+                    if (!isNetworkError) {
+                        // Only show error banner for non-network errors (network errors already shown by dashboard summary)
+                        const errorBanner = document.getElementById('dashboard-error-banner');
+                        const errorMessage = document.getElementById('dashboard-error-message');
+                        if (errorBanner && errorMessage) {
+                            errorBanner.classList.remove('hidden');
+                            errorMessage.textContent = `Error loading extracurricular data: ${errMsg}`;
+                        }
+                    }
+                }
+            }
+            
+            function renderExtracurricularKPIs(summary, records) {
+            // KPIs removed
+
+            // Total Activities Conducted
+                document.getElementById('extra-total-activities').textContent = summary.total_events || 0;
+                
+                // Total Student Participations
+                document.getElementById('extra-total-participants').textContent = summary.total_participants || 0;
+                
+                // Total Achievements / Wins
+                document.getElementById('extra-total-wins').textContent = summary.total_won || 0;
+                
+                // Activities at National / State Level
+                const nationalState = records.filter(r => {
+                    const level = (r.level || '').toLowerCase();
+                    return level.includes('national') || level.includes('state') || level.includes('international') || level.includes('internat');
+                }).length;
+                document.getElementById('extra-national-state').textContent = nationalState;
+                
+                // Calculate Hackathons
+                const hackathons = records.filter(r => {
+                    const type = (r.type || '').toLowerCase();
+                    const eventType = (r.event_type || '').toLowerCase();
+                    const level = (r.level || '').toLowerCase();
+                    return type.includes('hackathon') || eventType.includes('hackathon') || level.includes('hackathon');
+                }).length;
+                document.getElementById('extra-hackathons').textContent = hackathons;
+                
+                // Calculate Internships
+                const internships = records.filter(r => {
+                    const outputType = (r.output_type || '').toLowerCase();
+                    const type = (r.type || '').toLowerCase();
+                    const level = (r.level || '').toLowerCase();
+                    return outputType === 'internships' || outputType === 'internship' || type.includes('internship') || level.includes('internship');
+                });
+                document.getElementById('extra-internships').textContent = internships.length;
+                
+                // Calculate Paid Internships (%)
+                const paidInternships = internships.filter(r => {
+                    const hasStipend = r.has_stipend;
+                    const stipend = parseFloat(r.stipend_amount) || 0;
+                    // Check if boolean true, string "Yes"/"yes", or has stipend amount > 0
+                    if (hasStipend === true || hasStipend === 'True') {
+                        return true;
+                    }
+                    if (typeof hasStipend === 'string') {
+                        const hasStipendLower = hasStipend.toLowerCase();
+                        if (hasStipendLower === 'yes' || hasStipendLower === 'true') {
+                            return true;
+                        }
+                    }
+                    if (stipend > 0) {
+                        return true;
+                    }
+                    return false;
+                }).length;
+                const paidPercentage = internships.length > 0 ? ((paidInternships / internships.length) * 100).toFixed(1) + '%' : '0%';
+                document.getElementById('extra-paid-internships').textContent = paidPercentage;
+            }
+            
+            function renderExtracurricularCharts(summary, records) {
+                // Destroy existing charts
+                destroyChart(extraCategoryChart);
+                destroyChart(internshipChart);
+                destroyChart(participationChart);
+                
+                // Ensure records is an array
+                if (!Array.isArray(records)) {
+                    records = [];
+                }
+                
+                // 1. Category-wise Distribution (Bar Chart) - KEEP AS IS
+                const categoryCtx = document.getElementById('extraCategoryChart');
+                if (categoryCtx) {
+                    // Group records by category and count activities
+                    const categoryCounts = {
+                        'Sports': 0,
+                        'Technical': 0,
+                        'Internships': 0,
+                        'Courses / Certifications': 0,
+                        'Cultural': 0,
+                        'IV': 0
+                    };
+                    
+                    records.forEach(r => {
+                        const outputType = r.output_type || '';
+                        const category = r.category || '';
+                        const catLower = category.toLowerCase();
+                        const typeLower = outputType.toLowerCase();
+                        
+                        if (typeLower === 'sports' || catLower.includes('sport')) {
+                            categoryCounts['Sports']++;
+                        } else if (typeLower === 'technical' || typeLower === 'technical event' || typeLower === 'technical events' || catLower.includes('technical') || catLower.includes('hackathon')) {
+                            categoryCounts['Technical']++;
+                        } else if (typeLower === 'internships' || typeLower === 'internship' || catLower.includes('internship')) {
+                            categoryCounts['Internships']++;
+                        } else if (typeLower === 'courses / certifications' || typeLower.includes('course') || typeLower.includes('certification') || catLower.includes('course') || catLower.includes('certification')) {
+                            categoryCounts['Courses / Certifications']++;
+                        } else if (typeLower === 'cultural' || typeLower === 'college-level events' || catLower.includes('cultural') || catLower.includes('student activit')) {
+                            categoryCounts['Cultural']++;
+                        } else if (typeLower.includes('industrial visit') || typeLower === 'iv' || catLower.includes('industrial visit') || catLower === 'iv') {
+                            categoryCounts['IV']++;
+                        }
+                    });
+                    
+                    const categories = Object.keys(categoryCounts);
+                    const values = Object.values(categoryCounts);
+                    
+                    extraCategoryChart = new Chart(categoryCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: categories,
+                            datasets: [{
+                                label: 'Number of Activities',
+                                data: values,
+                                backgroundColor: 'rgba(162, 211, 250, 0.85)', // #a2d3fa
+                                borderColor: '#3fa2f2',
+                                hoverBackgroundColor: '#3fa2f2',
+                                borderWidth: 1.5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                                y: { beginAtZero: true, ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }
+                            }
+                        }
+                    });
+                }
+                
+                // 2. Internship Distribution (Online vs Offline)
+                const internshipCtx = document.getElementById('internshipChart');
+                if (internshipCtx) {
+                    let internshipData = summary.internship_distribution;
+                    
+                    // Fallback if summary data not available
+                    if (!internshipData) {
+                        internshipData = { 'Online': 0, 'Offline': 0 };
+                        // Simple fallback logic if needed
+                    }
+                    
+                    const labels = Object.keys(internshipData);
+                    const values = Object.values(internshipData);
+                    const hasData = values.some(v => v > 0);
+
+                    internshipChart = new Chart(internshipCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: hasData ? labels : ['No Data'],
+                            datasets: [{
+                                label: 'Internships',
+                                data: hasData ? values : [0],
+                                backgroundColor: [
+                                    'rgba(162, 211, 250, 0.85)', // Primary #a2d3fa
+                                    '#3fa2f2'  // Secondary #3fa2f2
+                                ],
+                                borderColor: [
+                                    '#3fa2f2',
+                                    '#3fa2f2'
+                                ],
+                                borderWidth: 1.5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false },
+                                title: { display: true, text: 'Internship Mode Distribution', color: '#e2e8f0' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true, ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                                x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+                
+                // 3. Student Participation Outside College (Donut Chart)
+                const participationCtx = document.getElementById('participationChart');
+                if (participationCtx) {
+                    let participationData = summary.participation_location;
+                    
+                    if (!participationData) {
+                         participationData = { 'College': 0, 'Outside': 0 };
+                    }
+
+                    const labels = ['College Level', 'Outside College'];
+                    const values = [participationData['College'] || 0, participationData['Outside'] || 0];
+                    const hasData = values.some(v => v > 0);
+                    
+                    participationChart = new Chart(participationCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: hasData ? values : [0, 0],
+                                backgroundColor: [
+                                    '#a2d3fa', // Primary #a2d3fa
+                                    '#3fa2f2'  // Secondary #3fa2f2
+                                ],
+                                borderColor: [
+                                    '#3fa2f2',
+                                    '#3fa2f2'
+                                ],
+                                borderWidth: 1.5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { color: '#e2e8f0', padding: 15 }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+
+            // Placement & Higher Education data fetching and rendering
+            async function fetchPlacementData() {
+                if (!currentBatchId) {
+                    renderPlacementKPIs({}, 0);
+                    renderPlacementCharts([]);
+                    renderPlacementTables([]);
+                    return;
+                }
+                
+                try {
+                    console.log('📊 Fetching placement data for batch_id:', currentBatchId);
+                    
+                    // Fetch summary
+                    const summaryUrl = `${API_BASE}/api/placement-outcomes/summary?batch_id=${currentBatchId}`;
+                    console.log('📥 Summary URL:', summaryUrl);
+                    const summaryRes = await fetch(summaryUrl, { credentials: 'include' });
+                    if (!summaryRes.ok) {
+                        throw new Error(`HTTP ${summaryRes.status}`);
+                    }
+                    const summaryData = await summaryRes.json();
+                    console.log('✅ Summary data:', summaryData);
+                    
+                    // Fetch all records for detailed analysis
+                    const recordsUrl = `${API_BASE}/api/placement-outcomes?per_page=1000&batch_id=${currentBatchId}`;
+                    console.log('📥 Records URL:', recordsUrl);
+                    const recordsRes = await fetch(recordsUrl, { credentials: 'include' });
+                    const recordsData = await recordsRes.ok ? await recordsRes.json() : { records: [] };
+                    console.log('✅ Records data:', recordsData.records?.length || 0, 'records');
+                    
+                    // Get intake data for placement percentage
+                    const intakeUrl = `${API_BASE}/api/dashboard-summary?batch_id=${currentBatchId}`;
+                    let totalIntake = 0;
+                    try {
+                        const intakeRes = await fetch(intakeUrl, { credentials: 'include' });
+                        if (intakeRes.ok) {
+                            const intakeData = await intakeRes.json();
+                            const kpis = intakeData.kpis || {};
+                            totalIntake = kpis.sanctioned_intake || 0;
+                            console.log('Fetched intake data:', totalIntake);
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch intake data:', e);
+                    }
+                    
+                    renderPlacementKPIs(summaryData, totalIntake);
+                    renderPlacementCharts(recordsData.records || []);
+                    renderPlacementTables(recordsData.records || []);
+                } catch (err) {
+                    console.error('❌ Error loading placement data:', err);
+                    const errMsg = err.message || String(err);
+                    const errName = err.name || '';
+                    const isNetworkError = 
+                        errMsg.includes('Failed to fetch') || 
+                        errMsg.includes('NetworkError') || 
+                        errName === 'TypeError';
+                    
+                    // Set default values
+                    document.getElementById('placement-total-placed').textContent = '—';
+                    document.getElementById('placement-higher-studies').textContent = '—';
+                    document.getElementById('placement-entrepreneurship').textContent = '—';
+                    document.getElementById('placement-percentage').textContent = '—';
+                    
+                    if (!isNetworkError) {
+                        // Only show error banner for non-network errors (network errors already shown by dashboard summary)
+                        const errorBanner = document.getElementById('dashboard-error-banner');
+                        const errorMessage = document.getElementById('dashboard-error-message');
+                        if (errorBanner && errorMessage) {
+                            errorBanner.classList.remove('hidden');
+                            errorMessage.textContent = `Error loading placement data: ${errMsg}`;
+                        }
+                    }
+                }
+            }
+            
+            function renderPlacementKPIs(summary, totalIntake) {
+                const placed = summary.placed?.total_students || 0;
+                const higherStudies = summary.higher_studies?.total_students || 0;
+                const entrepreneurship = summary.entrepreneurship?.total_students || 0;
+                
+                document.getElementById('placement-total-placed').textContent = placed;
+                document.getElementById('placement-higher-studies').textContent = higherStudies;
+                document.getElementById('placement-entrepreneurship').textContent = entrepreneurship;
+                
+                // Calculate placement percentage
+                let placementPct = '—';
+                if (totalIntake > 0 && placed > 0) {
+                    placementPct = ((placed / totalIntake) * 100).toFixed(1) + '%';
+                } else if (totalIntake === 0) {
+                    console.warn('Placement percentage not calculated: sanctioned_intake is 0 or not available');
+                } else if (placed === 0) {
+                    placementPct = '0%';
+                }
+                console.log('Placement percentage calculation:', { placed, totalIntake, placementPct });
+                document.getElementById('placement-percentage').textContent = placementPct;
+            }
+            
+            function renderPlacementCharts(records) {
+                // Destroy existing charts
+                destroyChart(placementOutcomeChart);
+                destroyChart(placementCompanyChart);
+                destroyChart(placementCountryChart);
+                
+                // Ensure records is an array
+                if (!Array.isArray(records)) {
+                    records = [];
+                }
+                
+                // Outcome Distribution Chart
+                const outcomeCtx = document.getElementById('placementOutcomeChart');
+                if (outcomeCtx) {
+                    const outcomeData = {
+                        'Placed': 0,
+                        'Higher Studies': 0,
+                        'Entrepreneurship': 0
+                    };
+                    records.forEach(r => {
+                        if (r.outcome_type && outcomeData.hasOwnProperty(r.outcome_type)) {
+                            outcomeData[r.outcome_type] += (r.number_of_students || 0);
+                        }
+                    });
+                    
+                    const labels = Object.keys(outcomeData);
+                    const values = Object.values(outcomeData);
+                    
+                    placementOutcomeChart = new Chart(outcomeCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: [
+                                    '#4F4ACB', // Placed
+                                    '#6C63FF', // Higher Studies
+                                    '#A5B4FC'  // Entrepreneurship
+                                ],
+                                borderColor: [
+                                    '#3E3B9C',
+                                    '#6C63FF',
+                                    '#A5B4FC'
+                                ],
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { color: '#e2e8f0', padding: 15 }
+                                },
+                                tooltip: {
+                                    filter: function(tooltipItem) {
+                                        // Hide tooltip for zero values
+                                        return tooltipItem.parsed > 0;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Company-wise Placements (Top 5)
+                const companyCtx = document.getElementById('placementCompanyChart');
+                if (companyCtx) {
+                    const companyData = {};
+                    records.filter(r => r.outcome_type === 'Placed' && r.company_name).forEach(r => {
+                        const company = r.company_name;
+                        companyData[company] = (companyData[company] || 0) + (r.number_of_students || 0);
+                    });
+                    
+                    const sorted = Object.entries(companyData).sort((a, b) => b[1] - a[1]);
+                    const top5 = sorted.slice(0, 5);
+                    const others = sorted.slice(5).reduce((sum, [, count]) => sum + count, 0);
+                    
+                    const labels = top5.map(([name]) => name);
+                    const values = top5.map(([, count]) => count);
+                    if (others > 0) {
+                        labels.push('Others');
+                        values.push(others);
+                    }
+                    
+                    const hasData = values.some(v => v > 0);
+                    
+                    placementCompanyChart = new Chart(companyCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: hasData ? labels : ['No Data'],
+                            datasets: [{
+                                label: 'Students',
+                                data: hasData ? values : [0],
+                                backgroundColor: '#6C63FF', // Placed
+                                borderColor: '#6C63FF',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
+                                y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } }
+                            }
+                        }
+                    });
+                }
+                
+                // Higher Studies - India vs Abroad
+                const countryCtx = document.getElementById('placementCountryChart');
+                if (countryCtx) {
+                    const countryData = { 'India': 0, 'Abroad': 0 };
+                    records.filter(r => r.outcome_type === 'Higher Studies' && r.country).forEach(r => {
+                        const country = r.country === 'Abroad' ? 'Abroad' : 'India';
+                        countryData[country] += (r.number_of_students || 0);
+                    });
+                    
+                    const labels = Object.keys(countryData);
+                    const values = Object.values(countryData);
+                    
+                    placementCountryChart = new Chart(countryCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: [
+                                    '#6C63FF', // India
+                                    '#A5B4FC'  // Abroad
+                                ],
+                                borderColor: [
+                                    '#6C63FF',
+                                    '#A5B4FC'
+                                ],
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { color: '#e2e8f0', padding: 15 }
+                                },
+                                tooltip: {
+                                    filter: function(tooltipItem) {
+                                        // Hide tooltip for zero values
+                                        return tooltipItem.parsed > 0;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            
+            function renderPlacementTables(records) {
+                // Placement Details Table
+                const placementBody = document.getElementById('placement-details-body');
+                if (placementBody) {
+                    const placedRecords = records.filter(r => r.outcome_type === 'Placed').slice(0, 10);
+                    if (placedRecords.length === 0) {
+                        placementBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">No placement records</td></tr>';
+                    } else {
+                        placementBody.innerHTML = placedRecords.map(r => `
+                            <tr class="border-b border-slate-700 hover:bg-slate-700/30">
+                                <td class="py-2 px-3 text-white text-xs">${r.company_name || 'N/A'}</td>
+                                <td class="py-2 px-3 text-slate-300 text-xs">${r.job_role || 'N/A'}</td>
+                                <td class="py-2 px-3 text-right text-white text-xs font-semibold">${r.number_of_students || 0}</td>
+                                <td class="py-2 px-3 text-right text-slate-300 text-xs">${r.ctc_package ? r.ctc_package + ' LPA' : 'N/A'}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+                
+                // Higher Studies Summary Table
+                const higherStudiesBody = document.getElementById('higher-studies-body');
+                if (higherStudiesBody) {
+                    const higherStudiesRecords = records.filter(r => r.outcome_type === 'Higher Studies').slice(0, 10);
+                    if (higherStudiesRecords.length === 0) {
+                        higherStudiesBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">No higher studies records</td></tr>';
+                    } else {
+                        higherStudiesBody.innerHTML = higherStudiesRecords.map(r => `
+                            <tr class="border-b border-slate-700 hover:bg-slate-700/30">
+                                <td class="py-2 px-3 text-white text-xs">${r.course_name || 'N/A'}</td>
+                                <td class="py-2 px-3 text-slate-300 text-xs">${r.degree_type || 'N/A'}</td>
+                                <td class="py-2 px-3 text-slate-300 text-xs">${r.university_institute || 'N/A'}</td>
+                                <td class="py-2 px-3 text-right text-white text-xs font-semibold">${r.number_of_students || 0}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+                
+                // Entrepreneurship Summary Table
+                const entrepreneurshipBody = document.getElementById('entrepreneurship-body');
+                if (entrepreneurshipBody) {
+                    const entrepreneurshipRecords = records.filter(r => r.outcome_type === 'Entrepreneurship').slice(0, 10);
+                    if (entrepreneurshipRecords.length === 0) {
+                        entrepreneurshipBody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-400">No entrepreneurship records</td></tr>';
+                    } else {
+                        entrepreneurshipBody.innerHTML = entrepreneurshipRecords.map(r => `
+                            <tr class="border-b border-slate-700 hover:bg-slate-700/30">
+                                <td class="py-2 px-3 text-white text-xs">${r.startup_name || 'N/A'}</td>
+                                <td class="py-2 px-3 text-slate-300 text-xs">${r.startup_status || 'N/A'}</td>
+                                <td class="py-2 px-3 text-right text-white text-xs font-semibold">${r.number_of_students || 0}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            }
+
+            // load initial data
+            loadBatches();
+        });
+    </script>
+    <script>
+        (function() {
+            const toggleBtn = document.getElementById('sidebar-toggle');
+            const appShell = document.getElementById('app-shell');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    appShell.classList.toggle('mobile-sidebar-open');
+                });
+            }
+            if (backdrop) {
+                backdrop.addEventListener('click', () => {
+                    appShell.classList.remove('mobile-sidebar-open');
+                });
+            }
+        })();
+    </script>
+    <div class="aspd-watermark">ASPD | Developed by AIML Students | Internal Pilot v1</div>
+</body>
+</html>       
