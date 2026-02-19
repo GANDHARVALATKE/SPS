@@ -69,6 +69,12 @@ CORS(app, resources={r"/api/*": {
     "allow_headers": ["Content-Type", "Authorization"],
     "supports_credentials": True
 }}) 
+def _cache_headers(response):
+    ct = response.headers.get('Content-Type', '')
+    if 'text/html' in ct:
+        response.headers['Cache-Control'] = 'no-store'
+    return response
+app.after_request(_cache_headers)
 
 @app.route('/', methods=['GET'])
 def root():
